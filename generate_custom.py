@@ -410,6 +410,7 @@ def generate_images(
     os.makedirs(outdir, exist_ok=True)
 
     # Synthesize the result of a W projection.
+	# This one is for from file npz
     if (process=='image') and projected_w is not None:
         if seeds is not None:
             print ('Warning: --seeds is ignored when using --projected-w')
@@ -444,9 +445,10 @@ def generate_images(
             print('Generating image for seed %d (%d/%d) ...' % (seed, seed_idx, len(seeds)))
             z = torch.from_numpy(np.random.RandomState(seed).randn(1, G.z_dim)).to(device)
             img = G(z, label, truncation_psi=truncation_psi, noise_mode=noise_mode)
+            zs =  img
             img = (img.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8)
             PIL.Image.fromarray(img[0].cpu().numpy(), 'RGB').save(f'{outdir}/seed{seed:04d}.png')
-            np.savez(f'./data/seed{seed:04d}_w.npz', w=z.unsqueeze(0).cpu().numpy()) #saves as npz too
+            np.savez(f'./data/seed{seed:04d}_w.npz', w=zs.unsqueeze(0).cpu().numpy()) #saves as npz too
 
     elif(process=='interpolation' or process=='interpolation-truncation'):
         # create path for frames

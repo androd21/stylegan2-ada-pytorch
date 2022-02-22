@@ -317,7 +317,7 @@ def zs_to_ws(G,device,label,truncation_psi,zs):
 @click.option('--start', type=float, help='starting truncation value', default=0.0, show_default=True)
 @click.option('--stop', type=float, help='stopping truncation value', default=1.0, show_default=True)
 @click.option('--trunc', 'truncation_psi', type=float, help='Truncation psi', default=1, show_default=True)
-
+@click.option('--img-name', help='Image file name', default='img00', show_default=True)
 def generate_images(
     ctx: click.Context,
     easing: str,
@@ -340,6 +340,7 @@ def generate_images(
     projected_w: Optional[str],
     start: Optional[float],
     stop: Optional[float],
+    img_name: Optional[str],
 ):
     """Generate images using pretrained network pickle.
 
@@ -423,7 +424,8 @@ def generate_images(
         for idx, w in enumerate(ws):
             img = G.synthesis(w.unsqueeze(0), noise_mode=noise_mode)
             img = (img.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8)
-            img = PIL.Image.fromarray(img[0].cpu().numpy(), 'RGB').save(f'{outdir}/proj{idx:02d}.png')
+            #img = PIL.Image.fromarray(img[0].cpu().numpy(), 'RGB').save(f'{outdir}/proj{idx:02d}.png')
+            img = PIL.Image.fromarray(img[0].cpu().numpy(), 'RGB').save(f'{outdir}/'+img_name+'_gen.png')
         return
 
     # Labels.
@@ -453,17 +455,9 @@ def generate_images(
             with torch.no_grad():
                 torch.clamp(w_opt,-2.0,2.0,out=w_opt)
             w_out = w_opt.detach()[0]
-            #ws = ws[:, :, :].cpu().numpy().astype(np.float32)
-            img = G(z, label, truncation_psi=truncation_psi, noise_mode=noise_mode)
-            #zs = G(z, label, truncation_psi=truncation_psi, noise_mode=noise_mode)
-            #ws = G.mapping(z, label, truncation_psi=truncation_psi, truncation_cutoff=8), noise_mode='const'
-            #ws = G.mapping(z, label, truncation_psi=truncation_psi, truncation_cutoff=8)
-            #ws = ws.cpu().numpy().astype(np.float32)
             img = (img.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8)
             PIL.Image.fromarray(img[0].cpu().numpy(), 'RGB').save(f'{outdir}/seed{seed:04d}.png')
             np.savez(f'./data/seed{seed:04d}_ws.npz', w=w_out.unsqueeze(0).cpu().numpy()) #saves as npz too
-            #np.savez(f'./data/seed{seed:04d}_zs.npz', w=zs.unsqueeze(0).cpu().numpy()) #saves as npz too
-            #np.savez(f'./data/seed{seed:04d}_z.npz', w=z.unsqueeze(0).cpu().numpy()) #saves as npz too
 
     elif(process=='interpolation' or process=='interpolation-truncation'):
         # create path for frames

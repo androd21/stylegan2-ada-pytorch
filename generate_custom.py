@@ -455,6 +455,7 @@ def generate_images(
             with torch.no_grad():
                 torch.clamp(w_opt,-2.0,2.0,out=w_opt)
             w_out = w_opt.detach()[0]
+            img = G(z, label, truncation_psi=truncation_psi, noise_mode=noise_mode)
             img = (img.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8)
             PIL.Image.fromarray(img[0].cpu().numpy(), 'RGB').save(f'{outdir}/seed{seed:04d}.png')
             np.savez(f'./data/seed{seed:04d}_ws.npz', w=w_out.unsqueeze(0).cpu().numpy()) #saves as npz too

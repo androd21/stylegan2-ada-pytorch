@@ -405,7 +405,9 @@ def generate_images(
     device = torch.device('cuda')
     with dnnlib.util.open_url(network_pkl) as f:
         # G = legacy.load_network_pkl(f)['G_ema'].to(device) # type: ignore
-        G = legacy.load_network_pkl(f, custom=custom, **G_kwargs)['G_ema'].to(device) # type: ignore
+        #G = legacy.load_network_pkl(f, custom=custom, **G_kwargs)['G_ema'].to(device) # type: ignore
+        #with dnnlib.util.open_url(network_pkl) as fp:
+        G = legacy.load_network_pkl(f)['G_ema'].requires_grad_(False).to(device) # type: ignore
 
     os.makedirs(outdir, exist_ok=True)
 
@@ -444,12 +446,24 @@ def generate_images(
         for seed_idx, seed in enumerate(seeds):
             print('Generating image for seed %d (%d/%d) ...' % (seed, seed_idx, len(seeds)))
             z = torch.from_numpy(np.random.RandomState(seed).randn(1, G.z_dim)).to(device)
+            ws = G.mapping(z, None, truncation_psi=truncation_psi)
+            ws = ws.cpu().numpy().astype(np.float32)     
+            w_opt = torch.tensor(ws, dtype=torch.float32, device=device, requires_grad=True)
+            w_out = torch.zeros(list(w_opt.shape[1:]), dtype=torch.float32, device=device)
+            with torch.no_grad():
+                torch.clamp(w_opt,-2.0,2.0,out=w_opt)
+            w_out = w_opt.detach()[0]
+            #ws = ws[:, :, :].cpu().numpy().astype(np.float32)
             img = G(z, label, truncation_psi=truncation_psi, noise_mode=noise_mode)
-            #zs =  img
-            ws = G.mapping(z, label, truncation_psi=truncation_psi, truncation_cutoff=8)
+            #zs = G(z, label, truncation_psi=truncation_psi, noise_mode=noise_mode)
+            #ws = G.mapping(z, label, truncation_psi=truncation_psi, truncation_cutoff=8), noise_mode='const'
+            #ws = G.mapping(z, label, truncation_psi=truncation_psi, truncation_cutoff=8)
+            #ws = ws.cpu().numpy().astype(np.float32)
             img = (img.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8)
             PIL.Image.fromarray(img[0].cpu().numpy(), 'RGB').save(f'{outdir}/seed{seed:04d}.png')
-            np.savez(f'./data/seed{seed:04d}_w.npz', w=ws.unsqueeze(0).cpu().numpy()) #saves as npz too
+            np.savez(f'./data/seed{seed:04d}_ws.npz', w=w_out.unsqueeze(0).cpu().numpy()) #saves as npz too
+            #np.savez(f'./data/seed{seed:04d}_zs.npz', w=zs.unsqueeze(0).cpu().numpy()) #saves as npz too
+            #np.savez(f'./data/seed{seed:04d}_z.npz', w=z.unsqueeze(0).cpu().numpy()) #saves as npz too
 
     elif(process=='interpolation' or process=='interpolation-truncation'):
         # create path for frames
